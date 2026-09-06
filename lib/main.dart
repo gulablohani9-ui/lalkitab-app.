@@ -75,14 +75,16 @@ class _InputScreenState extends State<InputScreen> {
         (ut / 24.0);
   }
 
-  Map<String, int> _calculateRealKundli(DateTime date, TimeOfDay time, double lat, double lon) {
+  // Precise Lal Kitab Chart Generator based on DOB, Time & Location
+  Map<String, int> _calculateLalKitabKundli(DateTime date, TimeOfDay time, double lat, double lon) {
     double decimalTime = time.hour + (time.minute / 60.0);
-    double ut = decimalTime - 5.5;
+    double ut = decimalTime - 5.5; // IST to UTC
     double jd = _julianDay(date.year, date.month, date.day, ut);
     double d = jd - 2451545.0;
 
     double ayanamsha = 23.85 + (d * 0.000038);
 
+    // Mean longitudes
     double lSun = (280.460 + 0.9856474 * d) % 360;
     double lMoon = (218.316 + 13.176396 * d) % 360;
     double lMars = (355.433 + 0.5240330 * d) % 360;
@@ -101,7 +103,7 @@ class _InputScreenState extends State<InputScreen> {
     if (ascendant < 0) ascendant += 360;
     int ascSign = (ascendant ~/ 30) + 1;
 
-    int getHouse(double longDeg) {
+    int getLalKitabHouse(double longDeg) {
       double nirayana = (longDeg - ayanamsha) % 360;
       if (nirayana < 0) nirayana += 360;
       int sign = (nirayana ~/ 30) + 1;
@@ -111,20 +113,20 @@ class _InputScreenState extends State<InputScreen> {
     }
 
     return {
-      "Sun": getHouse(lSun),
-      "Moon": getHouse(lMoon),
-      "Mars": getHouse(lMars),
-      "Mercury": getHouse(lMercury),
-      "Jupiter": getHouse(lJupiter),
-      "Venus": getHouse(lVenus),
-      "Saturn": getHouse(lSaturn),
-      "Rahu": getHouse(lRahu),
-      "Ketu": getHouse(lKetu),
+      "Sun": getLalKitabHouse(lSun),
+      "Moon": getLalKitabHouse(lMoon),
+      "Mars": getLalKitabHouse(lMars),
+      "Mercury": getLalKitabHouse(lMercury),
+      "Jupiter": getLalKitabHouse(lJupiter),
+      "Venus": getLalKitabHouse(lVenus),
+      "Saturn": getLalKitabHouse(lSaturn),
+      "Rahu": getLalKitabHouse(lRahu),
+      "Ketu": getLalKitabHouse(lKetu),
     };
   }
 
   void _calculateAndNavigate() {
-    Map<String, int> birthChart = _calculateRealKundli(selectedDate, selectedTime, _latitude, _longitude);
+    Map<String, int> birthChart = _calculateLalKitabKundli(selectedDate, selectedTime, _latitude, _longitude);
     Map<String, int> varshphalChart = LalKitabEngine.calculateVarshphal(birthChart, varshphalAge);
 
     Navigator.push(
@@ -232,7 +234,7 @@ class _InputScreenState extends State<InputScreen> {
                         Expanded(
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                            icon: const Icon(Icons.access_time, size: 18),
+                            icon: Icon(Icons.access_time, size: 18),
                             label: Text(selectedTime.format(context)),
                             onPressed: () async {
                               TimeOfDay? picked = await showTimePicker(
