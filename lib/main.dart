@@ -24,12 +24,10 @@ class _InputScreenState extends State<InputScreen> {
   final _nameController = TextEditingController();
   final _placeController = TextEditingController();
   DateTime selectedDate = DateTime(1995, 5, 15);
-  TimeOfDay selectedTime = TimeOfDay(10, 30);
+  TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 30);
   int varshphalAge = 30;
 
   void _calculateAndNavigate() {
-    // Lal Kitab Lagna is Aries (Fixed House 1)
-    // Degrees mapped to houses based on birth details
     Map<String, int> birthChart = {
       "Sun": 1,
       "Moon": 4,
