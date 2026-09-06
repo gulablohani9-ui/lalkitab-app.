@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'lalkitab_data.dart';
@@ -23,15 +24,15 @@ class InputScreen extends StatefulWidget {
 }
 
 class _InputScreenState extends State<InputScreen> {
-  final _nameController = TextEditingController();
-  final _placeController = TextEditingController();
-  DateTime selectedDate = DateTime(1995, 5, 15);
-  TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 30);
-  int varshphalAge = 30;
+  final _nameController = TextEditingController(text: "Ghanshyam");
+  final _placeController = TextEditingController(text: "Jodhpur, Rajasthan, India");
+  DateTime selectedDate = DateTime(1983, 6, 30);
+  TimeOfDay selectedTime = const TimeOfDay(hour: 1, minute: 16);
+  int varshphalAge = 43;
 
   List<dynamic> _placeSuggestions = [];
-  double? _latitude;
-  double? _longitude;
+  double _latitude = 26.29; // Jodhpur Default
+  double _longitude = 73.02;
   bool _isLoadingPlaces = false;
 
   Future<void> _fetchPlaces(String query) async {
@@ -57,19 +58,80 @@ class _InputScreenState extends State<InputScreen> {
     }
   }
 
-  void _calculateAndNavigate() {
-    Map<String, int> birthChart = {
-      "Sun": 1,
-      "Moon": 4,
-      "Mars": 8,
-      "Mercury": 3,
-      "Jupiter": 2,
-      "Venus": 6,
-      "Saturn": 10,
-      "Rahu": 5,
-      "Ketu": 11
-    };
+  // --- ASTRONOMICAL CALCULATION ENGINE ---
+  double _julianDay(int year, int month, int day, double ut) {
+    if (month <= 2) {
+      year -= 1;
+      month += 12;
+    }
+    int a = year ~/ 100;
+    int b = 2 - a + (a ~/ 4);
+    return (365.25 * (year + 4716)).floor() +
+        (30.6001 * (month + 1)).floor() +
+        day +
+        b -
+        1524.5 +
+        (ut / 24.0);
+  }
 
+  Map<String, int> _calculateRealKundli(DateTime date, TimeOfDay time, double lat, double lon) {
+    // Timezone for India is +5.5
+    double decimalTime = time.hour + (time.minute / 60.0);
+    double ut = decimalTime - 5.5; // Universal Time (UTC)
+    double jd = _julianDay(date.year, date.month, date.day, ut);
+    double d = jd - 2451545.0; // Days since J2000.0
+
+    // Lahiri Ayanamsha (approximate)
+    double ayanamsha = 23.85 + (d * 0.000038);
+
+    // Mean Longitude Formulas (Astronomical Ephemeris Math)
+    double lSun = (280.460 + 0.9856474 * d) % 360;
+    double lMoon = (218.316 + 13.176396 * d) % 360;
+    double lMars = (355.433 + 0.5240330 * d) % 360;
+    double lMercury = (3.444 + 4.0923344 * d) % 360;
+    double lJupiter = (34.351 + 0.0830853 * d) % 360;
+    double lVenus = (181.980 + 1.6021305 * d) % 360;
+    double lSaturn = (50.077 + 0.0334442 * d) % 360;
+    double lRahu = (125.044 - 0.0529538 * d) % 360;
+    if (lRahu < 0) lRahu += 360;
+    double lKetu = (lRahu + 180) % 360;
+
+    // Local Sidereal Time & Ascendant
+    double gmst = (18.697374558 + 24.06570982441908 * d) % 24;
+    double lst = (gmst + (lon / 15.0)) % 24;
+    double ramc = lst * 15.0;
+    double ascendant = (ramc + 90 - ayanamsha) % 360;
+    if (ascendant < 0) ascendant += 360;
+    int ascSign = (ascendant ~/ 30) + 1;
+
+    // Lal Kitab maps planets into houses relative to Ascendant (Equal 30 deg house)
+    int getHouse(double longDeg) {
+      double nirayana = (longDeg - ayanamsha) % 360;
+      if (nirayana < 0) nirayana += 360;
+      int sign = (nirayana ~/ 30) + 1;
+      int house = (sign - ascSign + 1);
+      if (house <= 0) house += 12;
+      return house;
+    }
+
+    return {
+      "Sun": getHouse(lSun),
+      "Moon": getHouse(lMoon),
+      "Mars": getHouse(lMars),
+      "Mercury": getHouse(lMercury),
+      "Jupiter": getHouse(lJupiter),
+      "Venus": getHouse(lVenus),
+      "Saturn": getHouse(lSaturn),
+      "Rahu": getHouse(lRahu),
+      "Ketu": getHouse(lKetu),
+    };
+  }
+
+  void _calculateAndNavigate() {
+    // 1. Calculate Real Birth Chart from DOB, Time & Place
+    Map<String, int> birthChart = _calculateRealKundli(selectedDate, selectedTime, _latitude, _longitude);
+
+    // 2. Calculate Lal Kitab Varshphal Progression Chart
     Map<String, int> varshphalChart =
         LalKitabData.calculateVarshphal(birthChart, varshphalAge);
 
@@ -126,8 +188,8 @@ class _InputScreenState extends State<InputScreen> {
                       onTap: () {
                         setState(() {
                           _placeController.text = item['display_name'];
-                          _latitude = double.tryParse(item['lat']);
-                          _longitude = double.tryParse(item['lon']);
+                          _latitude = double.tryParse(item['lat']) ?? 26.29;
+                          _longitude = double.tryParse(item['lon']) ?? 73.02;
                           _placeSuggestions = [];
                         });
                       },
