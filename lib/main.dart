@@ -13,7 +13,7 @@ class LalKitabApp extends StatelessWidget {
       title: 'Lal Kitab Kundli & Varshphal',
       theme: ThemeData(
         primarySwatch: Colors.deepOrange,
-        scaffoldBackgroundColor: Color(0xFFF9F9FB),
+        scaffoldBackgroundColor: const Color(0xFFF9F9FB),
       ),
       home: InputScreen(),
     );
@@ -144,44 +144,44 @@ class _InputScreenState extends State<InputScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("लाल किताब कुंडली व वर्षफल", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("लाल किताब कुंडली व वर्षफल", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 2,
               child: Padding(
-                padding: EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: "नाम (Name)",
-                        prefixIcon: Icon(Icons.person),
+                        prefixIcon: const Icon(Icons.person),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _placeController,
                       decoration: InputDecoration(
                         labelText: "जन्म स्थान (e.g. Jodhpur)",
-                        prefixIcon: Icon(Icons.location_city),
+                        prefixIcon: const Icon(Icons.location_city),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         suffixIcon: _isLoadingPlaces
-                            ? Transform.scale(scale: 0.5, child: CircularProgressIndicator())
-                            : Icon(Icons.search),
+                            ? Transform.scale(scale: 0.5, child: const CircularProgressIndicator())
+                            : const Icon(Icons.search),
                       ),
                       onChanged: _fetchPlaces,
                     ),
                     if (_placeSuggestions.isNotEmpty)
                       Container(
-                        margin: EdgeInsets.only(top: 8),
+                        margin: const EdgeInsets.only(top: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border.all(color: Colors.grey.shade300),
@@ -189,14 +189,14 @@ class _InputScreenState extends State<InputScreen> {
                         ),
                         child: ListView.separated(
                           shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
+                          physics: const NeverScrollableScrollPhysics(),
                           itemCount: _placeSuggestions.length,
-                          separatorBuilder: (ctx, i) => Divider(height: 1),
+                          separatorBuilder: (ctx, i) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final item = _placeSuggestions[index];
                             return ListTile(
-                              leading: Icon(Icons.place, color: Colors.deepOrange),
-                              title: Text(item['display_name'] ?? '', style: TextStyle(fontSize: 13)),
+                              leading: const Icon(Icons.place, color: Colors.deepOrange),
+                              title: Text(item['display_name'] ?? '', style: const TextStyle(fontSize: 13)),
                               onTap: () {
                                 setState(() {
                                   _placeController.text = item['display_name'];
@@ -209,13 +209,13 @@ class _InputScreenState extends State<InputScreen> {
                           },
                         ),
                       ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 14)),
-                            icon: Icon(Icons.calendar_today, size: 18),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                            icon: const Icon(Icons.calendar_today, size: 18),
                             label: Text(selectedDate.toLocal().toString().split(' ')[0]),
                             onPressed: () async {
                               DateTime? picked = await showDatePicker(
@@ -228,11 +228,11 @@ class _InputScreenState extends State<InputScreen> {
                             },
                           ),
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 14)),
-                            icon: Icon(Icons.access_time, size: 18),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                            icon: const Icon(Icons.access_time, size: 18),
                             label: Text(selectedTime.format(context)),
                             onPressed: () async {
                               TimeOfDay? picked = await showTimePicker(
@@ -243,13 +243,13 @@ class _InputScreenState extends State<InputScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
                       value: varshphalAge,
                       decoration: InputDecoration(
                         labelText: "वर्षफल आयु (Running Year)",
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        prefixIcon: Icon(Icons.timeline),
+                        prefixIcon: const Icon(Icons.timeline),
                       ),
                       items: List.generate(
                         100,
@@ -261,15 +261,15 @@ class _InputScreenState extends State<InputScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 54),
+                minimumSize: const Size(double.infinity, 54),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 backgroundColor: Colors.deepOrange,
               ),
               onPressed: _calculateAndNavigate,
-              child: Text("विस्तृत कुंडली व वर्षफल देखें", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text("विस्तृत कुंडली व वर्षफल देखें", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -303,9 +303,9 @@ class ResultScreen extends StatelessWidget {
           title: Text("$name की लाल किताब कुंडली"),
           bottom: TabBar(
             indicatorColor: Colors.white,
-            tabs: [
+            tabs: const [
               Tab(icon: Icon(Icons.auto_awesome), text: "जन्म कुंडली"),
-              Tab(icon: Icon(Icons.update), text: "वर्षफल ($varshphalAgeवां वर्ष)"),
+              Tab(icon: Icon(Icons.update), text: "वर्षफल"),
             ],
           ),
         ),
@@ -321,17 +321,17 @@ class ResultScreen extends StatelessWidget {
 
   Widget _buildChartTab(Map<String, int> chart, List<Map<String, String>> reports) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             height: 240,
             width: double.infinity,
-            margin: EdgeInsets.symmetric(vertical: 8),
+            margin: const EdgeInsets.symmetric(vertical: 8),
             child: CustomPaint(painter: KundliPainter(chart)),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Text(
@@ -339,13 +339,13 @@ class ResultScreen extends StatelessWidget {
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade900),
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           ...reports.map((r) => Card(
                 elevation: 3,
-                margin: EdgeInsets.symmetric(vertical: 8),
+                margin: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -357,17 +357,17 @@ class ResultScreen extends StatelessWidget {
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange.shade800),
                           ),
                           Chip(
-                            label: Text("भाव ${r['house']}", style: TextStyle(color: Colors.white, fontSize: 12)),
+                            label: Text("भाव ${r['house']}", style: const TextStyle(color: Colors.white, fontSize: 12)),
                             backgroundColor: Colors.deepOrange,
                             visualDensity: VisualDensity.compact,
                           )
                         ],
                       ),
                       if (r['shlok']!.isNotEmpty) ...[
-                        SizedBox(height: 10),
+                        const SizedBox(height: 10),
                         Container(
                           width: double.infinity,
-                          padding: EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.amber.shade50,
                             borderRadius: BorderRadius.circular(8),
@@ -379,27 +379,27 @@ class ResultScreen extends StatelessWidget {
                           ),
                         ),
                       ],
-                      SizedBox(height: 14),
-                      Text("विस्तृत फलित एवं स्वभाव:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
-                      SizedBox(height: 4),
-                      Text(r['swabhav']!, style: TextStyle(fontSize: 14, height: 1.45, color: Colors.black87)),
+                      const SizedBox(height: 14),
+                      const Text("विस्तृत फलित एवं स्वभाव:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
+                      const SizedBox(height: 4),
+                      Text(r['swabhav']!, style: const TextStyle(fontSize: 14, height: 1.45, color: Colors.black87)),
                       if (r['vishesh_shartein']!.isNotEmpty) ...[
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Text("विशेष शर्तें व स्थितियां:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.indigo.shade900)),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(r['vishesh_shartein']!, style: TextStyle(fontSize: 14, height: 1.4, color: Colors.indigo.shade900)),
                       ],
                       if (r['upaay']!.isNotEmpty) ...[
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Text("लाल किताब सटीक उपाय:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade900)),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(r['upaay']!, style: TextStyle(fontSize: 14, height: 1.4, color: Colors.green.shade900, fontWeight: FontWeight.w600)),
                       ],
                       if (r['savdhani']!.isNotEmpty) ...[
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Text("सावधानी व वर्जनाएं:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red.shade900)),
-                        SizedBox(height: 4),
-                        Text(r['savdhani']!, style: TextStyle(fontSize: 14, height: 1.4, color: Colors.red.shade950)),
+                        const SizedBox(height: 4),
+                        Text(r['savdhani']!, style: TextStyle(fontSize: 14, height: 1.4, color: Colors.red.shade900)),
                       ],
                     ],
                   ),
