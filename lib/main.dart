@@ -65,11 +65,10 @@ class _InputScreenState extends State<InputScreen> {
     }
   }
 
-  // Exact Swiss Ephemeris 4.1.0 API Call
   Map<String, int> _calculateSwissLalKitabKundli(
       DateTime date, TimeOfDay time, double lat, double lon) {
     double decimalTime = time.hour + (time.minute / 60.0);
-    double utHour = decimalTime - 5.5; // IST to UTC
+    double utHour = decimalTime - 5.5;
     int day = date.day;
     int month = date.month;
     int year = date.year;
@@ -82,11 +81,9 @@ class _InputScreenState extends State<InputScreen> {
       year = prevDay.year;
     }
 
-    // Julian Day
     double tjdUt = Sweph.swe_julday(
         year, month, day, utHour, CalendarType.SE_GREG_CAL);
 
-    // Exact SiderealMode enum passing
     Sweph.swe_set_sid_mode(
       SiderealMode.SE_SIDM_LAHIRI,
       0.0,
@@ -95,7 +92,6 @@ class _InputScreenState extends State<InputScreen> {
 
     final iflag = SwephFlag.SEFLG_SWIEPH | SwephFlag.SEFLG_SIDEREAL;
 
-    // Houses calculation
     final housesData = Sweph.swe_houses(tjdUt, lat, lon, Hsys.P);
     double ascendantDeg = housesData.ascmc[0];
     int ascSign = (ascendantDeg ~/ 30) + 1;
@@ -367,7 +363,7 @@ class ResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.horizontal(4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Text(
               "PDF मूल सूत्रों के अनुसार सम्पूर्ण फलित, शर्तें एवं उपाय:",
               style: TextStyle(
