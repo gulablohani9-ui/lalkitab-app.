@@ -30,15 +30,15 @@ class InputScreen extends StatefulWidget {
 }
 
 class _InputScreenState extends State<InputScreen> {
-  final _nameController = TextEditingController(text: "Ghanshyam");
-  final _placeController = TextEditingController(text: "Jodhpur, Rajasthan, India");
-  DateTime selectedDate = DateTime(1983, 6, 30);
-  TimeOfDay selectedTime = const TimeOfDay(hour: 1, minute: 16);
+  final _nameController = TextEditingController(text: "rajani");
+  final _placeController = TextEditingController(text: "Jalor, Rajasthan, India");
+  DateTime selectedDate = DateTime(1983, 5, 24);
+  TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 45);
   int varshphalAge = 43;
 
   List<dynamic> _placeSuggestions = [];
-  double _latitude = 26.29;
-  double _longitude = 73.02;
+  double _latitude = 25.35; // Jalore Default
+  double _longitude = 72.62;
   bool _isLoadingPlaces = false;
 
   Future<void> _fetchPlaces(String query) async {
@@ -64,25 +64,38 @@ class _InputScreenState extends State<InputScreen> {
     }
   }
 
-  double _julianDay(int year, int month, int day, double ut) {
-    if (month <= 2) {
-      year -= 1;
-      month += 12;
+  // Pure Astronomical Math Engine
+  double _rad(double d) => d * pi / 180.0;
+  double _deg(double r) => r * 180.0 / pi;
+  double _norm(double x) => x - 360.0 * (x / 360.0).floor();
+
+  double _julianDay(int y, int m, int d, double ut) {
+    if (m <= 2) {
+      y -= 1;
+      m += 12;
     }
-    int a = year ~/ 100;
+    int a = y ~/ 100;
     int b = 2 - a + (a ~/ 4);
-    return (365.25 * (year + 4716)).floor() +
-        (30.6001 * (month + 1)).floor() +
-        day +
+    return (365.25 * (y + 4716)).floor() +
+        (30.6001 * (m + 1)).floor() +
+        d +
         b -
         1524.5 +
         (ut / 24.0);
   }
 
-  double _rad(double d) => d * pi / 180.0;
-  double _deg(double r) => r * 180.0 / pi;
+  double _solveKepler(double M, double e) {
+    double mRad = _rad(M);
+    double e0 = mRad;
+    for (int i = 0; i < 15; i++) {
+      double delta = (e0 - e * sin(e0) - mRad) / (1.0 - e * cos(e0));
+      e0 -= delta;
+      if (delta.abs() < 1e-6) break;
+    }
+    return e0;
+  }
 
-  Map<String, int> _calculateLalKitabPositions(
+  Map<String, int> _calculateAccurateLalKitabKundli(
       DateTime date, TimeOfDay time, double lat, double lon) {
     double decimalTime = time.hour + (time.minute / 60.0);
     double ut = decimalTime - 5.5; // IST to UTC
@@ -90,70 +103,151 @@ class _InputScreenState extends State<InputScreen> {
     double d = jd - 2451545.0;
     double t = d / 36525.0;
 
-    // High Precision Lahiri Ayanamsha
-    double ayanamsha = 23.8583 + 1.396 * t;
+    // Authentic Lahiri Ayanamsha (Chitra Paksha)
+    double ayanamsha = 23.85833 + (1.396042 * t) + (0.000308 * t * t);
 
-    // Real Planetary Longitude (Degrees)
-    double lSun = (280.46646 + 36000.76983 * t + 1.9146 * sin(_rad(357.5291 + 35999.050 * t))) % 360;
-    double lMoon = (218.3165 + 481267.8813 * t + 6.2886 * sin(_rad(134.963 + 477198.867 * t))) % 360;
-    double lMars = (355.433 + 19140.299 * t) % 360;
-    double lMercury = (lSun + 18.0 * sin(_rad(t * 149472.0))) % 360;
-    double lJupiter = (34.351 + 3034.905 * t) % 360;
-    double lVenus = (lSun + 30.0 * sin(_rad(t * 58517.0))) % 360;
-    double lSaturn = (50.077 + 1222.114 * t) % 360;
-    double lRahu = (125.044 - 1934.136 * t) % 360;
-    if (lRahu < 0) lRahu += 360;
-    double lKetu = (lRahu + 180.0) % 360;
+    // Sun & Earth
+    double mSun = _norm(357.5291 + 35999.0503 * t);
+    double cSun = (1.9146 - 0.0048 * t) * sin(_rad(mSun)) +
+        (0.019993 - 0.000101 * t) * sin(_rad(2 * mSun)) +
+        0.000289 * sin(_rad(3 * mSun));
+    double lSunTrop = _norm(280.4665 + 36000.7698 * t + cSun);
+
+    double rSun = 1.00014 - 0.01671 * cos(_rad(mSun));
+    double xEarth = -rSun * cos(_rad(lSunTrop));
+    double yEarth = -rSun * sin(_rad(lSunTrop));
+
+    // Moon Longitude (Brown/Chapront Series)
+    double l0Moon = 218.3165 + 481267.8813 * t;
+    double lMoonM = 134.9634 + 477198.8676 * t;
+    double dMoon = 297.8502 + 445267.1115 * t;
+    double fMoon = 93.2721 + 483202.0175 * t;
+
+    double lMoonTrop = _norm(l0Moon +
+        6.2888 * sin(_rad(lMoonM)) +
+        1.2740 * sin(_rad(2 * dMoon - lMoonM)) +
+        0.6583 * sin(_rad(2 * dMoon)) +
+        0.2136 * sin(_rad(2 * lMoonM)) -
+        0.1851 * sin(_rad(mSun)) -
+        0.1143 * sin(_rad(2 * fMoon)));
+
+    // Rahu & Ketu (Mean Lunar Nodes)
+    double lRahuTrop = _norm(125.0445 - 1934.1363 * t + 0.002075 * t * t);
+    double lKetuTrop = _norm(lRahuTrop + 180.0);
+
+    // Heliocentric Keplerian Elements for Planets
+    List<Map<String, dynamic>> planetElements = [
+      // Mercury
+      {
+        "name": "Mercury",
+        "a": 0.387098,
+        "e": 0.205630,
+        "I": 7.005,
+        "L": _norm(252.2509 + 149472.6746 * t),
+        "peri": _norm(77.4561 + 1.5565 * t),
+        "node": _norm(48.3309 + 1.2536 * t),
+      },
+      // Venus
+      {
+        "name": "Venus",
+        "a": 0.723332,
+        "e": 0.006772,
+        "I": 3.3946,
+        "L": _norm(181.9798 + 58517.8156 * t),
+        "peri": _norm(131.5637 + 1.4022 * t),
+        "node": _norm(76.6799 + 0.9011 * t),
+      },
+      // Mars
+      {
+        "name": "Mars",
+        "a": 1.523679,
+        "e": 0.093400,
+        "I": 1.8497,
+        "L": _norm(355.4330 + 19140.2993 * t),
+        "peri": _norm(336.0602 + 1.8410 * t),
+        "node": _norm(49.5581 + 0.7721 * t),
+      },
+      // Jupiter
+      {
+        "name": "Jupiter",
+        "a": 5.20260,
+        "e": 0.04849,
+        "I": 1.303,
+        "L": _norm(34.3515 + 3034.9057 * t),
+        "peri": _norm(14.3312 + 1.6126 * t),
+        "node": _norm(100.4644 + 1.0210 * t),
+      },
+      // Saturn
+      {
+        "name": "Saturn",
+        "a": 9.5549,
+        "e": 0.05551,
+        "I": 2.489,
+        "L": _norm(50.0774 + 1222.1138 * t),
+        "peri": _norm(93.0568 + 1.9638 * t),
+        "node": _norm(113.6655 + 0.8771 * t),
+      },
+    ];
+
+    Map<String, double> tropLongitudes = {
+      "Sun": lSunTrop,
+      "Moon": lMoonTrop,
+      "Rahu": lRahuTrop,
+      "Ketu": lKetuTrop,
+    };
+
+    for (var p in planetElements) {
+      double a = p["a"];
+      double e = p["e"];
+      double M = _norm(p["L"] - p["peri"]);
+      double E = _solveKepler(M, e);
+      double xv = a * (cos(E) - e);
+      double yv = a * sqrt(1.0 - e * e) * sin(E);
+
+      double v = _norm(_deg(atan2(yv, xv)));
+      double r = sqrt(xv * xv + yv * yv);
+
+      double lHelioc = _norm(v + p["peri"]);
+      double xh = r * cos(_rad(lHelioc));
+      double yh = r * sin(_rad(lHelioc));
+
+      // Geocentric Longitude
+      double xg = xh - xEarth;
+      double yg = yh - yEarth;
+      double lGeoc = _norm(_deg(atan2(yg, xg)));
+
+      tropLongitudes[p["name"]] = lGeoc;
+    }
 
     // Ascendant (Lagna) Calculation
-    double gmst = (280.46061837 + 360.98564736629 * d + 0.000387933 * t * t) % 360;
-    double ramc = (gmst + lon) % 360;
+    double gmst0 = _norm(280.46061837 + 360.98564736629 * d + 0.000387933 * t * t);
+    double lst = _norm(gmst0 + lon);
     double eps = 23.439291 - 0.0130042 * t;
-    double ascRad = atan2(cos(_rad(ramc)), -sin(_rad(ramc)) * cos(_rad(eps)) - tan(_rad(lat)) * sin(_rad(eps)));
-    double ascDeg = (_deg(ascRad) - ayanamsha) % 360;
-    if (ascDeg < 0) ascDeg += 360;
-    int ascSign = (ascDeg ~/ 30) + 1;
 
-    // Lal Kitab Equal House Mapping
-    int getLalKitabHouse(double deg) {
-      double sidereal = (deg - ayanamsha) % 360;
-      if (sidereal < 0) sidereal += 360;
+    double ascRad = atan2(cos(_rad(lst)), -sin(_rad(lst)) * cos(_rad(eps)) - tan(_rad(lat)) * sin(_rad(eps)));
+    double ascTrop = _norm(_deg(ascRad));
+    double ascSidereal = _norm(ascTrop - ayanamsha);
+    int ascSign = (ascSidereal ~/ 30) + 1;
+
+    // Convert Sidereal Longitude to Lal Kitab House relative to Lagna
+    int getHouse(double tropDeg) {
+      double sidereal = _norm(tropDeg - ayanamsha);
       int planetSign = (sidereal ~/ 30) + 1;
       int house = (planetSign - ascSign + 1);
       if (house <= 0) house += 12;
       return house;
     }
 
-    // Exact Verified House Assignment for user details
-    if (date.year == 1983 && date.month == 6 && date.day == 30) {
-      return {
-        "Sun": 3,
-        "Mars": 3,
-        "Mercury": 3,
-        "Rahu": 3,
-        "Venus": 4,
-        "Saturn": 7,
-        "Jupiter": 8,
-        "Ketu": 9,
-        "Moon": 11,
-      };
-    }
+    Map<String, int> finalChart = {};
+    tropLongitudes.forEach((name, deg) {
+      finalChart[name] = getHouse(deg);
+    });
 
-    return {
-      "Sun": getLalKitabHouse(lSun),
-      "Moon": getLalKitabHouse(lMoon),
-      "Mars": getLalKitabHouse(lMars),
-      "Mercury": getLalKitabHouse(lMercury),
-      "Jupiter": getLalKitabHouse(lJupiter),
-      "Venus": getLalKitabHouse(lVenus),
-      "Saturn": getLalKitabHouse(lSaturn),
-      "Rahu": getLalKitabHouse(lRahu),
-      "Ketu": getLalKitabHouse(lKetu),
-    };
+    return finalChart;
   }
 
   void _calculateAndNavigate() {
-    Map<String, int> birthChart = _calculateLalKitabPositions(
+    Map<String, int> birthChart = _calculateAccurateLalKitabKundli(
         selectedDate, selectedTime, _latitude, _longitude);
     Map<String, int> varshphalChart =
         LalKitabEngine.calculateVarshphal(birthChart, varshphalAge);
@@ -239,8 +333,8 @@ class _InputScreenState extends State<InputScreen> {
                               onTap: () {
                                 setState(() {
                                   _placeController.text = item['display_name'];
-                                  _latitude = double.tryParse(item['lat']) ?? 26.29;
-                                  _longitude = double.tryParse(item['lon']) ?? 73.02;
+                                  _latitude = double.tryParse(item['lat']) ?? 25.35;
+                                  _longitude = double.tryParse(item['lon']) ?? 72.62;
                                   _placeSuggestions = [];
                                 });
                               },
