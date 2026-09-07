@@ -86,16 +86,16 @@ class _InputScreenState extends State<InputScreen> {
     double tjdUt = Sweph.swe_julday(
         year, month, day, utHour, CalendarType.SE_GREG_CAL);
 
-    // Lahiri Sidereal Mode
+    // Correct SiderealModeFlag constructor call
     Sweph.swe_set_sid_mode(
-      SiderealMode.SE_SIDM_LAHIRI.toSiderealModeFlag(),
+      SiderealModeFlag(SiderealMode.SE_SIDM_LAHIRI),
       0,
       0,
     );
 
     final iflag = SwephFlag.SEFLG_SWIEPH | SwephFlag.SEFLG_SIDEREAL;
 
-    // Houses calculation with HousesWithArmc
+    // Houses calculation
     final housesData = Sweph.swe_houses(tjdUt, lat, lon, Hsys.P);
     double ascendantDeg = housesData.ascmc[0];
     int ascSign = (ascendantDeg ~/ 30) + 1;
