@@ -7,7 +7,6 @@ import 'kundli_painter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize official Swiss Ephemeris C-Engine (swedll)
   await Sweph.init();
   runApp(LalKitabApp());
 }
@@ -66,12 +65,11 @@ class _InputScreenState extends State<InputScreen> {
     }
   }
 
-  // --- OFFICIAL SWISS EPHEMERIS ENGINE (swedll) ---
+  // Exact Swiss Ephemeris 4.1.0 API Call
   Map<String, int> _calculateSwissLalKitabKundli(
       DateTime date, TimeOfDay time, double lat, double lon) {
-    // 1. Local Time (IST +5:30) to Universal Time (UTC)
     double decimalTime = time.hour + (time.minute / 60.0);
-    double utHour = decimalTime - 5.5;
+    double utHour = decimalTime - 5.5; // IST to UTC
     int day = date.day;
     int month = date.month;
     int year = date.year;
@@ -84,21 +82,24 @@ class _InputScreenState extends State<InputScreen> {
       year = prevDay.year;
     }
 
-    // 2. Julian Day via Swiss Ephemeris
+    // Julian Day
     double tjdUt = Sweph.swe_julday(
         year, month, day, utHour, CalendarType.SE_GREG_CAL);
 
-    // 3. Set Authentic Lahiri Sidereal Mode (Chitra Paksha Ayanamsha)
-    Sweph.swe_set_sid_mode(SiderealMode.SE_SIDM_LAHIRI, 0, 0);
+    // Lahiri Sidereal Mode
+    Sweph.swe_set_sid_mode(
+      SiderealMode.SE_SIDM_LAHIRI.toSiderealModeFlag(),
+      0,
+      0,
+    );
 
-    const int iflag = SwephFlag.SEFLG_SWIEPH | SwephFlag.SEFLG_SIDEREAL;
+    final iflag = SwephFlag.SEFLG_SWIEPH | SwephFlag.SEFLG_SIDEREAL;
 
-    // 4. Calculate Lagna (Ascendant) via Swiss Ephemeris House Cusps
-    Houses housesData = Sweph.swe_houses(tjdUt, lat, lon, Hsys.P);
+    // Houses calculation with HousesWithArmc
+    final housesData = Sweph.swe_houses(tjdUt, lat, lon, Hsys.P);
     double ascendantDeg = housesData.ascmc[0];
     int ascSign = (ascendantDeg ~/ 30) + 1;
 
-    // 5. Heavenly bodies mapping
     Map<String, HeavenlyBody> bodies = {
       "Sun": HeavenlyBody.SE_SUN,
       "Moon": HeavenlyBody.SE_MOON,
@@ -113,17 +114,15 @@ class _InputScreenState extends State<InputScreen> {
     Map<String, int> chart = {};
 
     bodies.forEach((name, body) {
-      Coordinates coords = Sweph.swe_calc_ut(tjdUt, body, iflag);
+      final coords = Sweph.swe_calc_ut(tjdUt, body, iflag);
       double longitude = coords.longitude;
       int planetSign = (longitude ~/ 30) + 1;
 
-      // Lal Kitab Equal House (Khana) relative to Lagna
       int house = (planetSign - ascSign + 1);
       if (house <= 0) house += 12;
       chart[name] = house;
     });
 
-    // Ketu is 180 degrees opposite Rahu (6 houses away)
     int rahuHouse = chart["Rahu"]!;
     int ketuHouse = ((rahuHouse - 1 + 6) % 12) + 1;
     chart["Ketu"] = ketuHouse;
