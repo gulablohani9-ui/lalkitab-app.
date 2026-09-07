@@ -51,11 +51,14 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Android APK
-        run: flutter build apk --debug
+      - name: Build Android APK Direct via Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: "**/build/**/outputs/**/*.apk"
