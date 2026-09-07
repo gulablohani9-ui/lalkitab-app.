@@ -86,11 +86,11 @@ class _InputScreenState extends State<InputScreen> {
     double tjdUt = Sweph.swe_julday(
         year, month, day, utHour, CalendarType.SE_GREG_CAL);
 
-    // Correct SiderealModeFlag constructor call
+    // Exact SiderealMode enum passing
     Sweph.swe_set_sid_mode(
-      SiderealModeFlag(SiderealMode.SE_SIDM_LAHIRI),
-      0,
-      0,
+      SiderealMode.SE_SIDM_LAHIRI,
+      0.0,
+      0.0,
     );
 
     final iflag = SwephFlag.SEFLG_SWIEPH | SwephFlag.SEFLG_SIDEREAL;
@@ -367,7 +367,7 @@ class ResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            padding: const EdgeInsets.horizontal(4.0),
             child: Text(
               "PDF मूल सूत्रों के अनुसार सम्पूर्ण फलित, शर्तें एवं उपाय:",
               style: TextStyle(
