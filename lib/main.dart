@@ -35,7 +35,7 @@ class _InputScreenState extends State<InputScreen> {
   final _placeController = TextEditingController(text: "Jodhpur, Rajasthan, India");
   DateTime selectedDate = DateTime(1983, 6, 30);
   TimeOfDay selectedTime = const TimeOfDay(hour: 1, minute: 16);
-  int varshphalAge = 43;
+  int varshphalAge = 44;
 
   List<dynamic> _placeSuggestions = [];
   double _latitude = 26.29;
@@ -65,10 +65,15 @@ class _InputScreenState extends State<InputScreen> {
     }
   }
 
-  Map<String, int> _calculateSwissLalKitabKundli(
+  double _getLahiriAyanamsha(double tjdUt) {
+    double t = (tjdUt - 2451545.0) / 36525.0;
+    return 23.85833 + (1.396042 * t);
+  }
+
+  Map<String, dynamic> _calculateSwissLalKitab(
       DateTime date, TimeOfDay time, double lat, double lon) {
     double decimalTime = time.hour + (time.minute / 60.0);
-    double utHour = decimalTime - 5.5;
+    double utHour = decimalTime - 5.5; // IST to UTC
     int day = date.day;
     int month = date.month;
     int year = date.year;
@@ -83,14 +88,11 @@ class _InputScreenState extends State<InputScreen> {
 
     double tjdUt = Sweph.swe_julday(
         year, month, day, utHour, CalendarType.SE_GREG_CAL);
-
-    double t = (tjdUt - 2451545.0) / 36525.0;
-    double lahiriAyanamsha = 23.85833 + (1.396042 * t);
+    double lahiri = _getLahiriAyanamsha(tjdUt);
 
     final housesData = Sweph.swe_houses(tjdUt, lat, lon, Hsys.P);
     double ascendantTrop = housesData.ascmc[0];
-    
-    double ascendantSid = ascendantTrop - lahiriAyanamsha;
+    double ascendantSid = ascendantTrop - lahiri;
     while (ascendantSid < 0) ascendantSid += 360.0;
     ascendantSid %= 360.0;
     int ascSign = (ascendantSid ~/ 30) + 1;
@@ -107,34 +109,75 @@ class _InputScreenState extends State<InputScreen> {
     };
 
     Map<String, int> chart = {};
+    double birthSunLon = 0.0;
 
     bodies.forEach((name, body) {
       final coords = Sweph.swe_calc_ut(tjdUt, body, SwephFlag.SEFLG_SWIEPH);
       double tropLon = coords.longitude;
+      if (name == "Sun") birthSunLon = tropLon;
 
-      double sidLon = tropLon - lahiriAyanamsha;
+      double sidLon = tropLon - lahiri;
       while (sidLon < 0) sidLon += 360.0;
       sidLon %= 360.0;
 
       int planetSign = (sidLon ~/ 30) + 1;
-
       int house = (planetSign - ascSign + 1);
       if (house <= 0) house += 12;
       chart[name] = house;
     });
 
     int rahuHouse = chart["Rahu"]!;
-    int ketuHouse = ((rahuHouse - 1 + 6) % 12) + 1;
-    chart["Ketu"] = ketuHouse;
+    chart["Ketu"] = ((rahuHouse - 1 + 6) % 12) + 1;
 
-    return chart;
+    return {
+      "chart": chart,
+      "birthSunLon": birthSunLon,
+      "tjdUt": tjdUt,
+      "ascSign": ascSign,
+    };
+  }
+
+  // Pure Live Solar Return Engine for ANY Year
+  Map<String, int> _calculateLiveVarshphal(
+      double birthSunLon, DateTime birthDate, int age, double lat, double lon, Map<String, int> birthChart) {
+    int targetYear = birthDate.year + (age - 1);
+    
+    // Approximate JD for target year birth date
+    double approxJd = Sweph.swe_julday(
+        targetYear, birthDate.month, birthDate.day, 12.0, CalendarType.SE_GREG_CAL);
+
+    // Iterative convergence to find exact solar return second
+    double returnJd = approxJd;
+    for (int i = 0; i < 6; i++) {
+      final sunPos = Sweph.swe_calc_ut(returnJd, HeavenlyBody.SE_SUN, SwephFlag.SEFLG_SWIEPH);
+      double diff = birthSunLon - sunPos.longitude;
+      while (diff > 180.0) diff -= 360.0;
+      while (diff < -180.0) diff += 360.0;
+      returnJd += diff / 0.9856473; // Sun daily motion
+    }
+
+    double lahiri = _getLahiriAyanamsha(returnJd);
+
+    // Varsh Pravesh Ascendant
+    final returnHouses = Sweph.swe_houses(returnJd, lat, lon, Hsys.P);
+    double returnAscTrop = returnHouses.ascmc[0];
+    double returnAscSid = returnAscTrop - lahiri;
+    while (returnAscSid < 0) returnAscSid += 360.0;
+    returnAscSid %= 360.0;
+    int varshLagna = (returnAscSid ~/ 30) + 1;
+
+    // Delegate to Lal Kitab Farman house shift logic
+    return LalKitabEngine.calculateDynamicVarshphal(birthChart, age, varshLagna);
   }
 
   void _calculateAndNavigate() {
-    Map<String, int> birthChart = _calculateSwissLalKitabKundli(
+    var birthResult = _calculateSwissLalKitab(
         selectedDate, selectedTime, _latitude, _longitude);
-    Map<String, int> varshphalChart =
-        LalKitabEngine.calculateVarshphal(birthChart, varshphalAge);
+    Map<String, int> birthChart = birthResult["chart"];
+    double birthSunLon = birthResult["birthSunLon"];
+
+    Map<String, int> varshphalChart = _calculateLiveVarshphal(
+        birthSunLon, selectedDate, varshphalAge, _latitude, _longitude, birthChart);
 
     Navigator.push(
       context,
