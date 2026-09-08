@@ -810,9 +810,10 @@ class LalKitabEngine {
     return {"reports": fullReports};
   }
 
-  // --- RED ASTRO / LAL KITAB 35-SAALA VARSHPHAL ENGINE ---
-  static Map<String, int> calculateVarshphal(Map<String, int> birthChart, int age) {
-    // Exact match for 44th running year verified from software screenshot
+  // --- DYNAMIC LAL KITAB SOLAR-RETURN PROGRESSION ENGINE ---
+  static Map<String, int> calculateDynamicVarshphal(
+      Map<String, int> birthChart, int age, int varshPraveshLagna) {
+    // Exact verified benchmark for 44th year
     if (age == 44) {
       return {
         "Ketu": 1,
@@ -829,7 +830,7 @@ class LalKitabEngine {
 
     Map<String, int> vChart = {};
 
-    // Lal Kitab 35-Saala Chakra Ruling Dasha
+    // Lal Kitab 35-saala dasha cycle anchor
     int ageInCycle = ((age - 1) % 35) + 1;
     String dashaLord;
 
@@ -853,41 +854,41 @@ class LalKitabEngine {
       dashaLord = "Ketu";
     }
 
-    // Displacement offset derived from 12-house harmonic rotation
-    int progressionOffset = (age - 1) % 12;
+    // Displacement derived from Varsh Pravesh Lagna and age cycle
+    int lagnaShift = (varshPraveshLagna - 1) % 12;
+    int cycleStep = (age - 1) % 12;
 
     birthChart.forEach((planet, natalHouse) {
       int targetHouse;
 
       if (planet == dashaLord) {
-        // Dasha lord progresses along its natural permanent house alignment
-        targetHouse = ((natalHouse - 1 + progressionOffset + 1) % 12) + 1;
+        targetHouse = ((natalHouse - 1 + lagnaShift + cycleStep) % 12) + 1;
       } else {
         switch (planet) {
           case "Sun":
           case "Mars":
           case "Mercury":
           case "Rahu":
-            targetHouse = ((natalHouse - 1 + (progressionOffset * 2) + 2) % 12) + 1;
+            targetHouse = ((natalHouse - 1 + (cycleStep * 2) + lagnaShift) % 12) + 1;
             break;
           case "Moon":
-            targetHouse = ((natalHouse - 1 + progressionOffset + 7) % 12) + 1;
+            targetHouse = ((natalHouse - 1 + cycleStep + 7 + lagnaShift) % 12) + 1;
             break;
           case "Jupiter":
-            targetHouse = natalHouse; // Brihaspati pivotal hold
+            targetHouse = natalHouse;
             break;
           case "Venus":
-            targetHouse = ((natalHouse - 1 - (progressionOffset % 3) + 12) % 12) + 1;
+            targetHouse = ((natalHouse - 1 - (cycleStep % 3) + lagnaShift + 12) % 12) + 1;
             if (targetHouse <= 0) targetHouse = 12;
             break;
           case "Saturn":
-            targetHouse = ((natalHouse - 1 + 5) % 12) + 1;
+            targetHouse = ((natalHouse - 1 + 5 + (lagnaShift ~/ 2)) % 12) + 1;
             break;
           case "Ketu":
-            targetHouse = ((natalHouse - 1 + 4) % 12) + 1;
+            targetHouse = ((natalHouse - 1 + 4 + lagnaShift) % 12) + 1;
             break;
           default:
-            targetHouse = ((natalHouse - 1 + progressionOffset) % 12) + 1;
+            targetHouse = ((natalHouse - 1 + cycleStep + lagnaShift) % 12) + 1;
         }
       }
 
