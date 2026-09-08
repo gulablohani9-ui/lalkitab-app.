@@ -381,6 +381,10 @@ class ResultScreen extends StatelessWidget {
     final font = await PdfGoogleFonts.hindRegular();
     final fontBold = await PdfGoogleFonts.hindBold();
 
+    final String hourStr = birthTime.hour.toString().padLeft(2, '0');
+    final String minStr = birthTime.minute.toString().padLeft(2, '0');
+    final String formattedTime = "$hourStr:$minStr";
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: format,
@@ -388,7 +392,6 @@ class ResultScreen extends StatelessWidget {
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) {
           return [
-            // Letterhead Header
             pw.Container(
               padding: const pw.EdgeInsets.only(bottom: 12),
               decoration: const pw.BoxDecoration(
@@ -414,7 +417,7 @@ class ResultScreen extends StatelessWidget {
                     children: [
                       pw.Text("जातक: $name",
                           style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
-                      pw.Text("जन्म: ${birthDate.toLocal().toString().split(' ')[0]} ${birthTime.format(context)}",
+                      pw.Text("जन्म: ${birthDate.toLocal().toString().split(' ')[0]} $formattedTime",
                           style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                       pw.Text("स्थान: $birthPlace",
                           style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
@@ -426,8 +429,6 @@ class ResultScreen extends StatelessWidget {
               ),
             ),
             pw.SizedBox(height: 16),
-
-            // Planetary Summary Table
             pw.Text("ग्रह स्थिति (जन्म कुंडली व वर्षफल)",
                 style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
             pw.SizedBox(height: 6),
@@ -450,12 +451,9 @@ class ResultScreen extends StatelessWidget {
               cellHeight: 22,
             ),
             pw.SizedBox(height: 20),
-
-            // Varshphal Detailed Predictions
             pw.Text("वर्षफल (Age $varshphalAge) विस्तृत फलित, शर्तें एवं सटीक उपाय:",
                 style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
             pw.SizedBox(height: 8),
-
             ...((varshphalReport["reports"] as List<Map<String, String>>).map((r) => pw.Container(
                   margin: const pw.EdgeInsets.only(bottom: 12),
                   padding: const pw.EdgeInsets.all(10),
