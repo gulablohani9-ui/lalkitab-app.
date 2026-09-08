@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:sweph/sweph.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'lalkitab_data.dart';
 import 'kundli_painter.dart';
 
@@ -73,7 +77,7 @@ class _InputScreenState extends State<InputScreen> {
   Map<String, dynamic> _calculateSwissLalKitab(
       DateTime date, TimeOfDay time, double lat, double lon) {
     double decimalTime = time.hour + (time.minute / 60.0);
-    double utHour = decimalTime - 5.5; // IST to UTC
+    double utHour = decimalTime - 5.5;
     int day = date.day;
     int month = date.month;
     int year = date.year;
@@ -137,28 +141,24 @@ class _InputScreenState extends State<InputScreen> {
     };
   }
 
-  // Pure Live Solar Return Engine for ANY Year
   Map<String, int> _calculateLiveVarshphal(
       double birthSunLon, DateTime birthDate, int age, double lat, double lon, Map<String, int> birthChart) {
     int targetYear = birthDate.year + (age - 1);
     
-    // Approximate JD for target year birth date
     double approxJd = Sweph.swe_julday(
         targetYear, birthDate.month, birthDate.day, 12.0, CalendarType.SE_GREG_CAL);
 
-    // Iterative convergence to find exact solar return second
     double returnJd = approxJd;
     for (int i = 0; i < 6; i++) {
       final sunPos = Sweph.swe_calc_ut(returnJd, HeavenlyBody.SE_SUN, SwephFlag.SEFLG_SWIEPH);
       double diff = birthSunLon - sunPos.longitude;
       while (diff > 180.0) diff -= 360.0;
       while (diff < -180.0) diff += 360.0;
-      returnJd += diff / 0.9856473; // Sun daily motion
+      returnJd += diff / 0.9856473;
     }
 
     double lahiri = _getLahiriAyanamsha(returnJd);
 
-    // Varsh Pravesh Ascendant
     final returnHouses = Sweph.swe_houses(returnJd, lat, lon, Hsys.P);
     double returnAscTrop = returnHouses.ascmc[0];
     double returnAscSid = returnAscTrop - lahiri;
@@ -166,7 +166,6 @@ class _InputScreenState extends State<InputScreen> {
     returnAscSid %= 360.0;
     int varshLagna = (returnAscSid ~/ 30) + 1;
 
-    // Delegate to Lal Kitab Farman house shift logic
     return LalKitabEngine.calculateDynamicVarshphal(birthChart, age, varshLagna);
   }
 
@@ -187,6 +186,9 @@ class _InputScreenState extends State<InputScreen> {
           birthChart: birthChart,
           varshphalChart: varshphalChart,
           varshphalAge: varshphalAge,
+          birthDate: selectedDate,
+          birthTime: selectedTime,
+          birthPlace: _placeController.text,
         ),
       ),
     );
@@ -357,26 +359,184 @@ class ResultScreen extends StatelessWidget {
   final Map<String, int> birthChart;
   final Map<String, int> varshphalChart;
   final int varshphalAge;
+  final DateTime birthDate;
+  final TimeOfDay birthTime;
+  final String birthPlace;
 
   ResultScreen({
     required this.name,
     required this.birthChart,
     required this.varshphalChart,
     required this.varshphalAge,
+    required this.birthDate,
+    required this.birthTime,
+    required this.birthPlace,
   });
+
+  Future<Uint8List> _generatePdfDoc(PdfPageFormat format) async {
+    final pdf = pw.Document();
+    var birthReport = LalKitabEngine.generateFullReport(birthChart, varshphalAge);
+    var varshphalReport = LalKitabEngine.generateFullReport(varshphalChart, varshphalAge);
+
+    final font = await PdfGoogleFonts.hindRegular();
+    final fontBold = await PdfGoogleFonts.hindBold();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: format,
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) {
+          return [
+            // Letterhead Header
+            pw.Container(
+              padding: const pw.EdgeInsets.only(bottom: 12),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(width: 2, color: PdfColors.deepOrange)),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text("ज्योतिषाचार्य: Ghanshyam Lohani",
+                          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
+                      pw.SizedBox(height: 2),
+                      pw.Text("सटीक लाल किताब एवं वर्षफल विशेषज्ञ",
+                          style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+                      pw.Text("संपर्क: +91 9636055931",
+                          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text("जातक: $name",
+                          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                      pw.Text("जन्म: ${birthDate.toLocal().toString().split(' ')[0]} ${birthTime.format(context)}",
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text("स्थान: $birthPlace",
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text("वर्षफल आयु: $varshphalAgeवां वर्ष",
+                          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange800)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 16),
+
+            // Planetary Summary Table
+            pw.Text("ग्रह स्थिति (जन्म कुंडली व वर्षफल)",
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
+            pw.SizedBox(height: 6),
+            pw.Table.fromTextArray(
+              headers: ['ग्रह', 'जन्म खाना नं.', 'वर्षफल खाना नं.'],
+              data: [
+                ['सूर्य (Sun)', '${birthChart["Sun"]}', '${varshphalChart["Sun"]}'],
+                ['चंद्र (Moon)', '${birthChart["Moon"]}', '${varshphalChart["Moon"]}'],
+                ['मंगल (Mars)', '${birthChart["Mars"]}', '${varshphalChart["Mars"]}'],
+                ['बुध (Mercury)', '${birthChart["Mercury"]}', '${varshphalChart["Mercury"]}'],
+                ['बृहस्पति (Jupiter)', '${birthChart["Jupiter"]}', '${varshphalChart["Jupiter"]}'],
+                ['शुक्र (Venus)', '${birthChart["Venus"]}', '${varshphalChart["Venus"]}'],
+                ['शनि (Saturn)', '${birthChart["Saturn"]}', '${varshphalChart["Saturn"]}'],
+                ['राहु (Rahu)', '${birthChart["Rahu"]}', '${varshphalChart["Rahu"]}'],
+                ['केतु (Ketu)', '${birthChart["Ketu"]}', '${varshphalChart["Ketu"]}'],
+              ],
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.deepOrange),
+              cellAlignment: pw.Alignment.center,
+              cellHeight: 22,
+            ),
+            pw.SizedBox(height: 20),
+
+            // Varshphal Detailed Predictions
+            pw.Text("वर्षफल (Age $varshphalAge) विस्तृत फलित, शर्तें एवं सटीक उपाय:",
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
+            pw.SizedBox(height: 8),
+
+            ...((varshphalReport["reports"] as List<Map<String, String>>).map((r) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 12),
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("${r['planet']} (खाना नं. ${r['house']})",
+                              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange900)),
+                          pw.Text("वर्षफल भाव ${r['house']}",
+                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+                        ],
+                      ),
+                      if (r['shlok']!.isNotEmpty) ...[
+                        pw.SizedBox(height: 4),
+                        pw.Text("श्लोक: ${r['shlok']}", style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
+                      ],
+                      pw.SizedBox(height: 4),
+                      pw.Text("स्वभाव व फलित: ${r['swabhav']}", style: const pw.TextStyle(fontSize: 10)),
+                      if (r['vishesh_shartein']!.isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text("विशेष शर्तें: ${r['vishesh_shartein']}", style: const pw.TextStyle(fontSize: 9, color: PdfColors.indigo900)),
+                      ],
+                      if (r['upaay']!.isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text("लाल किताब उपाय: ${r['upaay']}", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green900)),
+                      ],
+                      if (r['savdhani']!.isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text("सावधानी: ${r['savdhani']}", style: pw.TextStyle(fontSize: 9, color: PdfColors.red900)),
+                      ],
+                    ],
+                  ),
+                ))),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
 
   @override
   Widget build(BuildContext context) {
-    var birthReport =
-        LalKitabEngine.generateFullReport(birthChart, varshphalAge);
-    var varshphalReport =
-        LalKitabEngine.generateFullReport(varshphalChart, varshphalAge);
+    var birthReport = LalKitabEngine.generateFullReport(birthChart, varshphalAge);
+    var varshphalReport = LalKitabEngine.generateFullReport(varshphalChart, varshphalAge);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text("$name की लाल किताब कुंडली"),
+          title: Text("$name की कुंडली"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.print),
+              tooltip: "प्रिंट या PDF सेव करें",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Scaffold(
+                      appBar: AppBar(
+                        title: const Text("PDF प्रिंट प्रीव्यू"),
+                      ),
+                      body: PdfPreview(
+                        build: (format) => _generatePdfDoc(format),
+                        canChangeOrientation: false,
+                        canChangePageFormat: false,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
           bottom: TabBar(
             indicatorColor: Colors.white,
             tabs: const [
@@ -395,8 +555,7 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChartTab(
-      Map<String, int> chart, List<Map<String, String>> reports) {
+  Widget _buildChartTab(Map<String, int> chart, List<Map<String, String>> reports) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
